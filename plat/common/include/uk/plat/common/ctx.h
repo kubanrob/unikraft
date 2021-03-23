@@ -41,12 +41,6 @@
 struct ukplat_ctx {
 	__uptr sp;		/* Stack pointer */
 	__uptr ip;		/* Instruction pointer */
-	__uptr extregs;		/* Pointer to area to which extended
-				 * registers are saved on context switch.
-				 */
-	__u8 _extregs[];	/* Reserved memory area for extended
-				 * registers state
-				 */
 } __packed;
 #endif /* __ASSEMBLY__ */
 
