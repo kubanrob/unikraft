@@ -104,7 +104,6 @@ static void schedcoop_schedule(struct uk_sched *s)
 			else
 				set_queueable(prev);
 			clear_queueable(next);
-			ukplat_stack_set_current_thread(next);
 			break;
 		} else if (is_runnable(prev)) {
 			next = prev;
