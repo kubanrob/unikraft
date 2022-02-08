@@ -30,6 +30,7 @@
 #ifndef __PLAT_CMN_X86_TLS_H__
 #define __PLAT_CMN_X86_TLS_H__
 
+#include <x86/cpu.h> /* rdmsrl, wrmsrl */
 #include <x86/cpu_defs.h>
 
 #define get_tls_pointer() rdmsrl(X86_MSR_FS_BASE)

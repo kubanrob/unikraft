@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
- * Copyright (c) 2019, NEC Europe Ltd., NEC Corporation. All rights reserved.
+ * Authors: Costin Lupu <costin.lupu@cs.pub.ro>
+ *          Simon Kuenzer <simon.kuenzer@neclab.eu>
+ *
+ * Copyright (c) 2018, NEC Europe Ltd., NEC Corporation. All rights reserved.
+ * Copyright (c) 2021, NEC Laboratories Europe GmbH. NEC Corporation.
+ *                     All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,8 +32,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef __PLAT_CMN_TLS_H__
-#define __PLAT_CMN_TLS_H__
+
+#include <uk/arch/types.h>
+#include <uk/plat/tls.h>
 
 #if defined(LINUXUPLAT)
 #include <linuxu/tls.h>
@@ -40,4 +46,12 @@
 #error "For thread-local storage support, add tls.h for current architecture."
 #endif
 
-#endif /* __PLAT_CMN_TLS_H__ */
+__uptr ukplat_tlsp_get(void)
+{
+	return (__uptr) get_tls_pointer();
+}
+
+void ukplat_tlsp_set(__uptr tlsp)
+{
+	set_tls_pointer(tlsp);
+}

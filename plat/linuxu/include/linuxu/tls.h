@@ -39,7 +39,17 @@ static inline void set_tls_pointer(__uptr arg)
 
 static inline __uptr get_tls_pointer(void)
 {
-	return (__uptr) sys_arch_prctl(ARCH_GET_FS, 0x0);
+	__uptr addr;
+	int ret;
+
+	/* TODO: Read from FS register directly instead
+	 * of issue'ing a system Call
+	 */
+	ret = sys_arch_prctl(ARCH_GET_FS, (long) &addr);
+	if (ret < 0)
+		UK_CRASH("Failed to retrieve TLSP\n");
+
+	return addr;
 }
 
 #endif /* __PLAT_LINUXU_TLS_H__ */

@@ -35,7 +35,6 @@
 #include <uk/plat/config.h>
 #include <uk/alloc.h>
 #include <uk/sched.h>
-#include <uk/arch/tls.h>
 #if CONFIG_LIBUKSCHEDCOOP
 #include <uk/schedcoop.h>
 #endif
