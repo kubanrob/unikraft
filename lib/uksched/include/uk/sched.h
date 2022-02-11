@@ -204,8 +204,7 @@ static inline int uk_sched_thread_get_timeslice(struct uk_sched *s,
 
 struct uk_sched *uk_sched_create(struct uk_alloc *a, size_t prv_size);
 
-void uk_sched_idle_init(struct uk_sched *sched,
-		void *stack, void (*function)(void *));
+void uk_sched_idle_init(struct uk_sched *sched, uk_thread_fn0_t idle_fn);
 
 static inline struct uk_thread *uk_sched_get_idle(struct uk_sched *s)
 {
@@ -249,7 +248,7 @@ static inline bool uk_sched_started(struct uk_sched *sched)
 
 struct uk_thread *uk_sched_thread_create(struct uk_sched *sched,
 		const char *name, const uk_thread_attr_t *attr,
-		void (*function)(void *), void *arg);
+		uk_thread_fn1_t function, void *arg);
 void uk_sched_thread_destroy(struct uk_sched *sched,
 		struct uk_thread *thread);
 void uk_sched_thread_kill(struct uk_sched *sched,
@@ -264,14 +263,16 @@ void uk_sched_thread_switch(struct uk_thread *next)
 
 	__uk_sched_thread_current = next;
 	prev->tlsp = ukplat_tlsp_get();
-	ukarch_ectx_store(prev->ectx);
+	if (prev->ectx)
+		ukarch_ectx_store(prev->ectx);
 
 	/* Load next TLS and extended registers before context switch.
 	 * This avoids requiring special initialization code for newly
 	 * created threads to do the loading.
 	 */
 	ukplat_tlsp_set(next->tlsp);
-	ukarch_ectx_load(next->ectx);
+	if (next->ectx)
+		ukarch_ectx_load(next->ectx);
 
 	ukarch_ctx_switch(&prev->ctx, &next->ctx);
 }
