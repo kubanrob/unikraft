@@ -230,7 +230,7 @@ static int _uk_thread_call_termtab(struct uk_thread *child)
 		/* function must keep TLSP in order not
 		 * breaking successive calls
 		 */
-		UK_ASSERT(ukplat_tlsp_get() == child->tlsp);
+		UK_ASSERT(ukplat_tlsp_get() == child->uktlsp);
 	}
 
 	return ret;
@@ -257,6 +257,7 @@ static void _uk_thread_struct_init(struct uk_thread *t,
 
 	if (tlsp && is_uktls) {
 		t->flags |= UK_THREADF_UKTLS;
+		t->uktlsp = tlsp;
 	}
 	if (ectx) {
 		ukarch_ectx_init(t->ectx);
@@ -376,7 +377,7 @@ int uk_thread_init_bare_fn2(struct uk_thread *t,
 static int _uk_thread_struct_init_alloc(struct uk_thread *t,
 					struct uk_alloc *a_stack,
 					size_t stack_len,
-					struct uk_alloc *a_tls,
+					struct uk_alloc *a_uktls,
 					bool custom_ectx,
 					struct ukarch_ectx *ectx,
 					const char *name,
@@ -393,10 +394,10 @@ static int _uk_thread_struct_init_alloc(struct uk_thread *t,
 			goto err_out;
 	}
 
-	if (a_tls) {
+	if (a_uktls) {
 		if (!custom_ectx) {
 			/* Allocate TLS and ectx together */
-			tls = uk_memalign(a_tls,
+			tls = uk_memalign(a_uktls,
 					  ukarch_tls_area_align(),
 					  ukarch_tls_area_size()
 					  + ukarch_ectx_size()
@@ -411,7 +412,7 @@ static int _uk_thread_struct_init_alloc(struct uk_thread *t,
 				(uintptr_t) tls + ukarch_tls_area_size(),
 				ukarch_ectx_align());
 		} else {
-			tls = uk_memalign(a_tls, ukarch_tls_area_align(),
+			tls = uk_memalign(a_uktls, ukarch_tls_area_align(),
 					  ukarch_tls_area_size());
 			if (!tls)
 				goto err_free_stack;
@@ -431,8 +432,8 @@ static int _uk_thread_struct_init_alloc(struct uk_thread *t,
 	if (tls) {
 		ukarch_tls_area_copy(tls);
 
-		t->_mem.tls = tls;
-		t->_mem.tls_a = a_tls;
+		t->_mem.uktls = tls;
+		t->_mem.uktls_a = a_uktls;
 		t->flags |= UK_THREADF_UKTLS;
 	} else {
 		tlsp = 0x0;
@@ -454,10 +455,10 @@ void _uk_thread_struct_free_alloc(struct uk_thread *t)
 	UK_ASSERT(t);
 
 	/* Free memory that was allocated by us */
-	if (t->_mem.tls_a   && t->_mem.tls) {
-		uk_free(t->_mem.tls_a,   t->_mem.tls);
-		t->_mem.tls_a   = NULL;
-		t->_mem.tls     = NULL;
+	if (t->_mem.uktls_a && t->_mem.uktls) {
+		uk_free(t->_mem.uktls_a, t->_mem.uktls);
+		t->_mem.uktls_a = NULL;
+		t->_mem.uktls   = NULL;
 	}
 	if (t->_mem.stack_a && t->_mem.stack) {
 		uk_free(t->_mem.stack_a, t->_mem.stack);
@@ -470,7 +471,7 @@ int uk_thread_init_fn0(struct uk_thread *t,
 		       uk_thread_fn0_t fn,
 		       struct uk_alloc *a_stack,
 		       size_t stack_len,
-		       struct uk_alloc *a_tls,
+		       struct uk_alloc *a_uktls,
 		       bool custom_ectx,
 		       struct ukarch_ectx *ectx,
 		       const char *name,
@@ -484,7 +485,7 @@ int uk_thread_init_fn0(struct uk_thread *t,
 	UK_ASSERT(fn);
 
 	ret = _uk_thread_struct_init_alloc(t, a_stack, stack_len,
-					   a_tls, custom_ectx, ectx, name,
+					   a_uktls, custom_ectx, ectx, name,
 					   priv, dtor);
 	if (ret < 0)
 		goto err_out;
@@ -510,7 +511,7 @@ int uk_thread_init_fn1(struct uk_thread *t,
 		       void *argp,
 		       struct uk_alloc *a_stack,
 		       size_t stack_len,
-		       struct uk_alloc *a_tls,
+		       struct uk_alloc *a_uktls,
 		       bool custom_ectx,
 		       struct ukarch_ectx *ectx,
 		       const char *name,
@@ -524,7 +525,7 @@ int uk_thread_init_fn1(struct uk_thread *t,
 	UK_ASSERT(fn);
 
 	ret = _uk_thread_struct_init_alloc(t, a_stack, stack_len,
-					   a_tls, custom_ectx, ectx, name,
+					   a_uktls, custom_ectx, ectx, name,
 					   priv, dtor);
 	if (ret < 0)
 		goto err_out;
@@ -550,7 +551,7 @@ int uk_thread_init_fn2(struct uk_thread *t,
 		       void *argp0, void *argp1,
 		       struct uk_alloc *a_stack,
 		       size_t stack_len,
-		       struct uk_alloc *a_tls,
+		       struct uk_alloc *a_uktls,
 		       bool custom_ectx,
 		       struct ukarch_ectx *ectx,
 		       const char *name,
@@ -564,7 +565,7 @@ int uk_thread_init_fn2(struct uk_thread *t,
 	UK_ASSERT(fn);
 
 	ret = _uk_thread_struct_init_alloc(t, a_stack, stack_len,
-					   a_tls, custom_ectx, ectx, name,
+					   a_uktls, custom_ectx, ectx, name,
 					   priv, dtor);
 	if (ret < 0)
 		goto err_out;
@@ -623,7 +624,7 @@ struct uk_thread *uk_thread_create_bare(struct uk_alloc *a,
 static struct uk_thread *_uk_thread_alloc(struct uk_alloc *a,
 					  struct uk_alloc *a_stack,
 					  size_t stack_len,
-					  struct uk_alloc *a_tls,
+					  struct uk_alloc *a_uktls,
 					  bool no_ectx,
 					  const char *name,
 					  void *priv,
@@ -638,21 +639,21 @@ static struct uk_thread *_uk_thread_alloc(struct uk_alloc *a,
 	 *       when no TLS was requested but ectx support
 	 */
 	t_size = sizeof(*t);
-	if (!no_ectx && !a_tls)
+	if (!no_ectx && !a_uktls)
 		t_size += ukarch_ectx_size() + ukarch_ectx_align();
 
 	t = uk_malloc(a, t_size);
 	if (!t)
 		goto err_out;
 
-	if (!no_ectx && !a_tls)
+	if (!no_ectx && !a_uktls)
 		ectx = (struct ukarch_ectx *) ALIGN_UP((uintptr_t) t
 						       + sizeof(*t),
 						       ukarch_ectx_align());
 
 	if (_uk_thread_struct_init_alloc(t,
 					 a_stack, stack_len,
-					 a_tls,
+					 a_uktls,
 					 !(!ectx),
 					 ectx,
 					 name, priv, dtor) < 0)
@@ -679,7 +680,7 @@ struct uk_thread *uk_thread_create_fn0(struct uk_alloc *a,
 				       uk_thread_fn0_t fn,
 				       struct uk_alloc *a_stack,
 				       size_t stack_len,
-				       struct uk_alloc *a_tls,
+				       struct uk_alloc *a_uktls,
 				       bool no_ectx,
 				       const char *name,
 				       void *priv,
@@ -694,7 +695,7 @@ struct uk_thread *uk_thread_create_fn0(struct uk_alloc *a,
 	stack_len = (!!stack_len) ? stack_len : STACK_SIZE;
 	t = _uk_thread_alloc(a,
 			     a_stack, stack_len,
-			     a_tls,
+			     a_uktls,
 			     no_ectx, name, priv, dtor);
 	if (!t)
 		goto err_out;
@@ -721,7 +722,7 @@ struct uk_thread *uk_thread_create_fn1(struct uk_alloc *a,
 				       void *argp,
 				       struct uk_alloc *a_stack,
 				       size_t stack_len,
-				       struct uk_alloc *a_tls,
+				       struct uk_alloc *a_uktls,
 				       bool no_ectx,
 				       const char *name,
 				       void *priv,
@@ -736,7 +737,7 @@ struct uk_thread *uk_thread_create_fn1(struct uk_alloc *a,
 	stack_len = (!!stack_len) ? stack_len : STACK_SIZE;
 	t = _uk_thread_alloc(a,
 			     a_stack, stack_len,
-			     a_tls,
+			     a_uktls,
 			     no_ectx, name, priv, dtor);
 	if (!t)
 		goto err_out;
@@ -763,7 +764,7 @@ struct uk_thread *uk_thread_create_fn2(struct uk_alloc *a,
 				       void *argp0, void *argp1,
 				       struct uk_alloc *a_stack,
 				       size_t stack_len,
-				       struct uk_alloc *a_tls,
+				       struct uk_alloc *a_uktls,
 				       bool no_ectx,
 				       const char *name,
 				       void *priv,
@@ -778,7 +779,7 @@ struct uk_thread *uk_thread_create_fn2(struct uk_alloc *a,
 	stack_len = (!!stack_len) ? stack_len : STACK_SIZE;
 	t = _uk_thread_alloc(a,
 			     a_stack, stack_len,
-			     a_tls,
+			     a_uktls,
 			     no_ectx, name, priv, dtor);
 	if (!t)
 		goto err_out;
@@ -822,8 +823,8 @@ void uk_thread_release(struct uk_thread *t)
 	a = t->_mem.t_a;
 	stack_a = t->_mem.stack_a;
 	stack   = t->_mem.stack;
-	tls_a   = t->_mem.tls_a;
-	tls     = t->_mem.tls;
+	tls_a   = t->_mem.uktls_a;
+	tls     = t->_mem.uktls;
 
 	if (t->dtor)
 		t->dtor(t);
