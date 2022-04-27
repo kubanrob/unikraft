@@ -267,7 +267,7 @@ int uk_thread_init_bare(struct uk_thread *t,
 	ukarch_ctx_init_bare(&t->ctx, sp, ip);
 
 	if (ip)
-		t->flags |= UK_THREADF_RUNNABLE;
+		uk_thread_set_runnable(t);
 
 	return _uk_thread_call_inittab(t);
 }
@@ -290,7 +290,7 @@ int uk_thread_init_bare_fn0(struct uk_thread *t,
 	_uk_thread_struct_init(t, tlsp, is_uktls, ectx, name, priv, dtor);
 	ukarch_ctx_init_entry0(&t->ctx, sp, 0,
 			       (ukarch_ctx_entry0) fn);
-	t->flags |= UK_THREADF_RUNNABLE;
+	uk_thread_set_runnable(t);
 
 	return _uk_thread_call_inittab(t);
 }
@@ -315,7 +315,7 @@ int uk_thread_init_bare_fn1(struct uk_thread *t,
 	ukarch_ctx_init_entry1(&t->ctx, sp, 0,
 			       (ukarch_ctx_entry1) fn,
 			       (long) argp);
-	t->flags |= UK_THREADF_RUNNABLE;
+	uk_thread_set_runnable(t);
 
 	return _uk_thread_call_inittab(t);
 }
@@ -340,7 +340,7 @@ int uk_thread_init_bare_fn2(struct uk_thread *t,
 	ukarch_ctx_init_entry2(&t->ctx, sp, 0,
 			       (ukarch_ctx_entry2) fn,
 			       (long) argp0, (long) argp1);
-	t->flags |= UK_THREADF_RUNNABLE;
+	uk_thread_set_runnable(t);
 
 	return _uk_thread_call_inittab(t);
 }
@@ -486,7 +486,7 @@ int uk_thread_init_fn0(struct uk_thread *t,
 	ukarch_ctx_init_entry0(&t->ctx,
 			       ukarch_gen_sp(t->_mem.stack, stack_len),
 			       0, (ukarch_ctx_entry0) fn);
-	t->flags |= UK_THREADF_RUNNABLE;
+	uk_thread_set_runnable(t);
 
 	ret = _uk_thread_call_inittab(t);
 	if (ret < 0)
@@ -526,7 +526,7 @@ int uk_thread_init_fn1(struct uk_thread *t,
 	ukarch_ctx_init_entry1(&t->ctx,
 			       ukarch_gen_sp(t->_mem.stack, stack_len),
 			       0, (ukarch_ctx_entry1) fn, (long) argp);
-	t->flags |= UK_THREADF_RUNNABLE;
+	uk_thread_set_runnable(t);
 
 	ret = _uk_thread_call_inittab(t);
 	if (ret < 0)
@@ -567,7 +567,7 @@ int uk_thread_init_fn2(struct uk_thread *t,
 			       ukarch_gen_sp(t->_mem.stack, stack_len),
 			       0, (ukarch_ctx_entry2) fn,
 			       (long) argp0, (long) argp1);
-	t->flags |= UK_THREADF_RUNNABLE;
+	uk_thread_set_runnable(t);
 
 	ret = _uk_thread_call_inittab(t);
 	if (ret < 0)
@@ -706,7 +706,7 @@ struct uk_thread *uk_thread_create_fn0(struct uk_alloc *a,
 			       t->ctx.sp,
 			       0,
 			       fn);
-	t->flags |= UK_THREADF_RUNNABLE;
+	uk_thread_set_runnable(t);
 
 	return t;
 
@@ -741,7 +741,7 @@ struct uk_thread *uk_thread_create_fn1(struct uk_alloc *a,
 			       t->ctx.sp,
 			       0,
 			       (ukarch_ctx_entry1) fn, (long) argp);
-	t->flags |= UK_THREADF_RUNNABLE;
+	uk_thread_set_runnable(t);
 
 	return t;
 
@@ -777,7 +777,7 @@ struct uk_thread *uk_thread_create_fn2(struct uk_alloc *a,
 			       0,
 			       (ukarch_ctx_entry2) fn,
 			       (long) argp0, (long) argp1);
-	t->flags |= UK_THREADF_RUNNABLE;
+	uk_thread_set_runnable(t);
 
 	return t;
 
@@ -833,8 +833,8 @@ static void uk_thread_block_until(struct uk_thread *thread, __snsec until)
 
 	flags = ukplat_lcpu_save_irqf();
 	thread->wakeup_time = until;
-	if (is_runnable(thread)) {
-		clear_runnable(thread);
+	if (uk_thread_is_runnable(thread)) {
+		uk_thread_set_blocked(thread);
 		if (thread->sched)
 			uk_sched_thread_blocked(thread);
 	}
@@ -862,8 +862,8 @@ void uk_thread_wakeup(struct uk_thread *thread)
 	unsigned long flags;
 
 	flags = ukplat_lcpu_save_irqf();
-	if (!is_runnable(thread)) {
-		set_runnable(thread);
+	if (!uk_thread_is_runnable(thread)) {
+		uk_thread_set_runnable(thread);
 		if (thread->sched)
 			uk_sched_thread_wokeup(thread);
 	}
